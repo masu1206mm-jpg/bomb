@@ -2,667 +2,266 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>カップル水風船ゲーム！</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+  <title>カップル爆破ゲーム！魂の解放</title>
   <style>
-    :root{ --bg:#07122a; --fg:#eaf0ff; --muted:#a8b5e6; --panel:rgba(255,255,255,.08); }
-    body{
-      margin:0; color:var(--fg);
-      font-family: system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans JP","Hiragino Kaku Gothic ProN",sans-serif;
-      background: radial-gradient(1200px 700px at 50% 10%, #163c8a 0%, var(--bg) 55%, #030713 100%);
+    :root { --main-red: #ff3300; --soul-orange: #ffaa00; }
+    body {
+      margin: 0; background: #000; color: #fff;
+      font-family: 'Arial Black', sans-serif; overflow: hidden;
+      user-select: none; -webkit-touch-callout: none;
     }
-    .wrap{ min-height:100vh; display:grid; place-items:center; padding:18px; }
-    .card{
-      width:min(980px, 100%);
-      background: rgba(0,0,0,.22);
-      border: 1px solid rgba(255,255,255,.10);
-      border-radius: 18px;
-      box-shadow: 0 18px 60px rgba(0,0,0,.45);
-      overflow:hidden;
+    #game-ui {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 10;
     }
-    header{ padding:16px 16px 10px; border-bottom:1px solid rgba(255,255,255,.08); }
-    h1{ margin:0 0 6px; font-size:26px; }
-    .muted{ color:var(--muted); }
-    .main{ display:grid; grid-template-columns: 1fr; gap:12px; padding:14px; }
-    @media(min-width:980px){ .main{ grid-template-columns: 1fr 320px; } }
-    canvas{
-      width:100%;
-      aspect-ratio: 16/9;
-      background: rgba(255,255,255,.03);
-      border:1px solid rgba(255,255,255,.10);
-      border-radius:16px;
-      display:block;
+    .status-bar {
+      position: absolute; top: 10px; left: 10px; right: 10px;
+      display: flex; justify-content: space-between; font-size: 18px;
     }
-    .side{
-      border:1px solid rgba(255,255,255,.10);
-      background: rgba(255,255,255,.05);
-      border-radius:16px;
-      padding:12px;
+    .soul-gauge-container {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      width: 80%; height: 20px; background: rgba(255,255,255,0.2);
+      border: 2px solid #fff; border-radius: 10px; overflow: hidden;
     }
-    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:10px 0; }
-    button{
-      border:1px solid rgba(255,255,255,.15);
-      background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.05));
-      color:var(--fg);
-      padding:12px 14px;
-      border-radius:14px;
-      font-size:16px;
-      cursor:pointer;
-      user-select:none;
+    #soul-inner {
+      width: 0%; height: 100%; background: linear-gradient(90deg, var(--soul-orange), var(--main-red));
+      transition: width 0.3s;
     }
-    button:hover{ border-color:rgba(255,255,255,.26); }
-    button:disabled{ opacity:.5; cursor:not-allowed; }
-    .pill{
-      display:inline-block;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(0,0,0,.18);
-      font-size:13px;
+    #combo-text {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      font-size: 80px; color: var(--main-red); font-weight: 900;
+      opacity: 0; pointer-events: none; text-shadow: 0 0 20px #fff;
     }
-    .big{ font-weight:800; font-size:20px; }
-    .targets{ display:grid; grid-template-columns:1fr; gap:8px; margin-top:10px; }
-    .tbtn{ text-align:left; padding:10px; border-radius:14px; }
-    .mini{ font-size:12px; color:var(--muted); margin-top:3px; }
-    .overlay{
-      position:fixed; inset:0; display:grid; place-items:center;
-      background: radial-gradient(900px 500px at 50% 20%, rgba(120,180,255,.18), rgba(0,0,0,.78));
-      padding:18px;
+    canvas { display: block; touch-action: none; background: #1a2a1a; }
+    
+    /* スタート画面の改良 */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 100; text-align: center; padding: 20px;
     }
-    .startCard{
-      width:min(720px, 100%);
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(10,16,40,.72);
-      border-radius:20px;
-      padding:18px;
-      box-shadow: 0 20px 70px rgba(0,0,0,.55);
+    .title-area h1 { font-size: 42px; margin: 0; color: var(--main-red); text-shadow: 4px 4px #fff; }
+    .title-area p { font-size: 20px; color: var(--soul-orange); }
+    .start-btn {
+      margin-top: 30px; padding: 20px 50px; font-size: 24px;
+      background: var(--main-red); color: #fff; border: none; border-radius: 50px;
+      cursor: pointer; box-shadow: 0 0 20px var(--main-red);
     }
-    .titleBig{ font-size:34px; margin:0 0 10px; font-weight:900; }
-    .hot{ font-weight:900; }
-    .hint{ margin-top:8px; color:var(--muted); font-size:13px; }
+    .start-btn:active { transform: scale(0.95); }
   </style>
 </head>
 <body>
-  <!-- スタート画面 -->
+
   <div class="overlay" id="overlay">
-    <div class="startCard">
-      <div class="titleBig">カップル水風船ゲーム！</div>
-      <div class="big">爆発させろ！自分の魂🔥</div>
-      <p class="muted">
-        公園で開催中の水風船フェス！次々来る参加者（カップル多め）に、<b>巨大水しぶき</b>の水風船を投げて盛り上げろ。
-        ※全部フィクション＆お祭りノリ（危険行為はしないでね）
-      </p>
-      <div class="row">
-        <button id="startBtn">ゲームスタート</button>
-        <span class="pill">スマホOK / 1ファイル</span>
-      </div>
-      <div class="hint">操作：右の「投げる」ボタン or キャンバス上の相手をタップ</div>
+    <div class="title-area">
+      <h1>カップル爆破ゲーム！</h1>
+      <p>爆発させろ！自分の魂🔥</p>
+    </div>
+    <button class="start-btn" id="startBtn">魂を燃やす（スタート）</button>
+  </div>
+
+  <div id="game-ui">
+    <div class="status-bar">
+      <div>SCORE: <span id="score">0</span></div>
+      <div>TIME: <span id="time">30.0</span></div>
+    </div>
+    <div id="combo-text">COMBO!!</div>
+    <div class="soul-gauge-container">
+      <div id="soul-inner"></div>
     </div>
   </div>
 
-  <div class="wrap">
-    <div class="card">
-      <header>
-        <h1>水風船フェス：キノコ雲スプラッシュ</h1>
-        <div class="muted">ターン制じゃなくて、次々来る相手に投げるスコアアタック。制限時間内に何回当てれるか。</div>
-      </header>
-
-      <div class="main">
-        <canvas id="cv" width="1280" height="720"></canvas>
-
-        <div class="side">
-          <div class="row">
-            <span class="pill">TIME <b id="time" class="big">30.0</b>s</span>
-            <span class="pill">SCORE <b id="score" class="big">0</b></span>
-            <span class="pill">HITS <b id="hits" class="big">0</b></span>
-          </div>
-
-          <div class="muted">右の候補から「誰に投げるか」選べる。<br>（キャンバスの相手を直接タップでもOK）</div>
-
-          <div class="targets" id="targets"></div>
-
-          <div class="row" style="margin-top:12px;">
-            <button id="pauseBtn">一時停止</button>
-            <button id="resetBtn">リセット</button>
-          </div>
-
-          <div class="muted" id="msg" style="margin-top:8px;"></div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <canvas id="cv"></canvas>
 
 <script>
 (() => {
   const cv = document.getElementById('cv');
   const ctx = cv.getContext('2d');
-
-  const overlay = document.getElementById('overlay');
-  const startBtn = document.getElementById('startBtn');
-  const pauseBtn = document.getElementById('pauseBtn');
-  const resetBtn = document.getElementById('resetBtn');
-
-  const timeEl = document.getElementById('time');
   const scoreEl = document.getElementById('score');
-  const hitsEl = document.getElementById('hits');
-  const targetsEl = document.getElementById('targets');
-  const msgEl = document.getElementById('msg');
+  const timeEl = document.getElementById('time');
+  const soulInner = document.getElementById('soul-inner');
+  const comboEl = document.getElementById('combo-text');
+  const startBtn = document.getElementById('startBtn');
+  const overlay = document.getElementById('overlay');
 
-  // ====== ゲーム設定 ======
-  const GAME_SECONDS = 30;
-  const MAX_COUPLES_ON_SCREEN = 3;
-  const SPAWN_INTERVAL_MS = 1300; // 次々くる感
-  const WATER_BALLOON_COOLDOWN_MS = 220;
+  let width, height, score = 0, timeLeft = 30, running = false;
+  let couples = [], particles = [], shake = 0, combo = 0, soul = 0;
 
-  // 巨大水しぶき（原爆なみ＝比喩）演出パラメータ
-  const SPLASH_PARTICLES = 220;
-  const SPLASH_SPEED = 15;
-  const SPLASH_GRAVITY = 0.22;
-  const SPLASH_RING_COUNT = 5;
-
-  // ====== 状態 ======
-  let running = false;
-  let paused = false;
-  let score = 0;
-  let hits = 0;
-  let endAt = 0;
-  let lastFrame = 0;
-  let lastThrowAt = 0;
-  let spawnTimer = 0;
-
-  const couples = [];
-  const particles = [];
-  const rings = [];
-  const clouds = [];
-
-  // ====== ユーティリティ ======
-  const rnd = (a,b) => a + Math.random()*(b-a);
-  const rndi = (a,b) => Math.floor(rnd(a,b+1));
-  const pick = arr => arr[Math.floor(Math.random()*arr.length)];
-
-  function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
-
-  // 雑な見た目用（顔・髪・服・年齢感）
-  function makePerson(seedX, seedY){
-    const ageGroup = pick(["若者","大人","シニア"]);
-    const style = pick(["カジュアル","きれいめ","スポーティ","ストリート","フォーマル"]);
-    const vibe = pick(["ニコニコ","クール","照れ","元気","眠そう"]);
-    const hair = pick(["ショート","ミディアム","ロング","パーマ","ボブ"]);
-    const skin = pick(["明るめ","ふつう","日焼け"]);
-    const outfit = pick(["Tシャツ","パーカー","コート","シャツ","ワンピ","ジャケット"]);
-    return { ageGroup, style, vibe, hair, skin, outfit, seedX, seedY };
+  function resize() {
+    width = cv.width = window.innerWidth;
+    height = cv.height = window.innerHeight;
   }
+  window.addEventListener('resize', resize);
+  resize();
 
-  function makeCouple(){
-    const x = rnd(180, cv.width-180);
-    const y = rnd(360, cv.height-120);
-    const speed = rnd(0.45, 1.05);
-    const dir = Math.random() < 0.5 ? -1 : 1;
-
-    const p1 = makePerson(rnd(0,1), rnd(0,1));
-    const p2 = makePerson(rnd(0,1), rnd(0,1));
-
-    const tag = pick(["老若男女","学生っぽい","夫婦っぽい","友達カップル","距離近め","初デート感"]);
-    const name = `${tag}カップル`;
-
+  // カップルの生成
+  function createCouple() {
+    const isLeft = Math.random() > 0.5;
     return {
-      id: cryptoRandomId(),
-      name,
-      tag,
-      x, y,
-      vx: dir * speed,
-      w: 220,
-      h: 170,
-      p1, p2,
-      hp: 1, // 1 hit = splash
-      alive: true
+      x: isLeft ? -100 : width + 100,
+      y: height * 0.4 + Math.random() * height * 0.4,
+      vx: (isLeft ? 1 : -1) * (2 + Math.random() * 3),
+      p1: { face: Math.random(), hair: Math.random(), color: `hsl(${Math.random()*360}, 60%, 70%)` },
+      p2: { face: Math.random(), hair: Math.random(), color: `hsl(${Math.random()*360}, 60%, 70%)` },
+      w: 120, h: 80,
+      dead: false
     };
   }
 
-  function cryptoRandomId(){
-    // iOS Safariでも動くやつ
-    return Math.random().toString(16).slice(2) + Date.now().toString(16);
-  }
-
-  function reset(){
-    running = false;
-    paused = false;
-    score = 0;
-    hits = 0;
-    couples.length = 0;
-    particles.length = 0;
-    rings.length = 0;
-    clouds.length = 0;
-    spawnTimer = 0;
-    lastThrowAt = 0;
-    msgEl.textContent = "";
-    updateUI();
-    draw();
-  }
-
-  function start(){
-    reset();
-    running = true;
-    paused = false;
-    endAt = performance.now() + GAME_SECONDS*1000;
-    lastFrame = performance.now();
-    overlay.style.display = "none";
-    msgEl.textContent = "水風船フェス開始！派手にいけ！";
-    // 先に3組置く
-    while(couples.length < MAX_COUPLES_ON_SCREEN) couples.push(makeCouple());
-    rebuildTargets();
-    requestAnimationFrame(loop);
-  }
-
-  function updateUI(){
-    scoreEl.textContent = String(score);
-    hitsEl.textContent = String(hits);
-  }
-
-  // ====== 描画 ======
-  function drawBackground(){
-    // 空
-    const g = ctx.createLinearGradient(0,0,0,cv.height);
-    g.addColorStop(0, "rgba(90,150,255,0.35)");
-    g.addColorStop(0.35, "rgba(25,55,130,0.20)");
-    g.addColorStop(1, "rgba(0,0,0,0.20)");
-    ctx.fillStyle = g;
-    ctx.fillRect(0,0,cv.width,cv.height);
-
-    // 地面
-    ctx.fillStyle = "rgba(20,120,70,0.35)";
-    ctx.fillRect(0, cv.height*0.62, cv.width, cv.height*0.38);
-
-    // 公園っぽい木（雑）
-    for(let i=0;i<6;i++){
-      const x = (i+1)*cv.width/7 + Math.sin(performance.now()/2000 + i)*8;
-      const y = cv.height*0.62;
-      ctx.fillStyle = "rgba(40,120,60,0.35)";
-      ctx.beginPath();
-      ctx.arc(x, y-80, 55, 0, Math.PI*2);
-      ctx.arc(x-45, y-65, 45, 0, Math.PI*2);
-      ctx.arc(x+45, y-65, 45, 0, Math.PI*2);
-      ctx.fill();
-      ctx.fillStyle = "rgba(120,80,40,0.35)";
-      ctx.fillRect(x-10, y-60, 20, 70);
+  // 爆発エフェクト
+  function createExplosion(x, y) {
+    shake = 15;
+    for(let i=0; i<40; i++) {
+      particles.push({
+        x, y,
+        vx: (Math.random()-0.5) * 20,
+        vy: (Math.random()-0.5) * 20,
+        r: Math.random() * 15 + 5,
+        life: 1.0,
+        color: Math.random() > 0.5 ? '#ff4400' : '#ffaa00'
+      });
     }
   }
 
-  function drawPerson(px, py, person){
-    // 体（雑な人型）
-    const headR = 18 + (person.ageGroup==="シニア"?2:0);
-    const bodyH = 52 + (person.ageGroup==="若者"?4:0);
-    const bodyW = 22;
-
-    // 影
-    ctx.fillStyle = "rgba(0,0,0,0.25)";
-    ctx.beginPath();
-    ctx.ellipse(px, py+70, 26, 10, 0, 0, Math.PI*2);
-    ctx.fill();
-
+  function drawPerson(ctx, x, y, p, isRight) {
+    const offset = isRight ? 25 : -25;
     // 体
-    ctx.fillStyle = "rgba(255,255,255,0.20)";
-    ctx.fillRect(px-bodyW/2, py+18, bodyW, bodyH);
-
-    // 腕
-    ctx.strokeStyle = "rgba(255,255,255,0.22)";
-    ctx.lineWidth = 5;
+    ctx.fillStyle = p.color;
     ctx.beginPath();
-    ctx.moveTo(px-bodyW/2, py+35);
-    ctx.lineTo(px-bodyW/2-14, py+55);
-    ctx.moveTo(px+bodyW/2, py+35);
-    ctx.lineTo(px+bodyW/2+14, py+55);
-    ctx.stroke();
-
-    // 頭
-    ctx.fillStyle = "rgba(255,230,200,0.55)";
-    ctx.beginPath();
-    ctx.arc(px, py, headR, 0, Math.PI*2);
+    ctx.ellipse(x + offset, y + 40, 20, 30, 0, 0, Math.PI*2);
     ctx.fill();
-
-    // 髪
-    ctx.fillStyle = "rgba(30,30,30,0.35)";
+    // 顔
+    ctx.fillStyle = '#ffdbac';
     ctx.beginPath();
-    ctx.arc(px, py-4, headR, Math.PI, 0);
+    ctx.arc(x + offset, y, 20, 0, Math.PI*2);
     ctx.fill();
-
-    // 顔（雑）
-    ctx.fillStyle = "rgba(0,0,0,0.35)";
-    ctx.beginPath();
-    ctx.arc(px-6, py, 2, 0, Math.PI*2);
-    ctx.arc(px+6, py, 2, 0, Math.PI*2);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(0,0,0,0.25)";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(px, py+6, 7, 0, Math.PI);
-    ctx.stroke();
+    // 目（適当に個性を出す）
+    ctx.fillStyle = '#000';
+    if(p.face > 0.5) {
+        ctx.fillRect(x + offset - 8, y - 5, 4, 4);
+        ctx.fillRect(x + offset + 4, y - 5, 4, 4);
+    } else {
+        ctx.beginPath(); ctx.arc(x+offset-7, y-3, 3, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x+offset+7, y-3, 3, 0, Math.PI*2); ctx.fill();
+    }
   }
 
-  function drawCouple(c){
-    // バウンディングの透明枠（ターゲット感）
-    ctx.fillStyle = "rgba(255,255,255,0.05)";
-    ctx.strokeStyle = "rgba(255,255,255,0.15)";
-    ctx.lineWidth = 2;
-    roundRect(ctx, c.x-c.w/2, c.y-c.h/2, c.w, c.h, 14, true, true);
+  function update() {
+    if(!running) return;
 
-    // ベンチっぽい
-    ctx.fillStyle = "rgba(90,60,40,0.28)";
-    ctx.fillRect(c.x-85, c.y+45, 170, 14);
-    ctx.fillRect(c.x-75, c.y+59, 12, 18);
-    ctx.fillRect(c.x+63, c.y+59, 12, 18);
+    // 揺れ減衰
+    if(shake > 0) shake *= 0.9;
 
-    // 人2人
-    drawPerson(c.x-45, c.y-10, c.p1);
-    drawPerson(c.x+45, c.y-10, c.p2);
-
-    // ラベル
-    ctx.fillStyle = "rgba(0,0,0,0.35)";
-    ctx.fillRect(c.x-c.w/2+10, c.y-c.h/2+10, c.w-20, 26);
-    ctx.fillStyle = "rgba(255,255,255,0.85)";
-    ctx.font = "16px system-ui, -apple-system, sans-serif";
-    ctx.fillText(c.name, c.x-c.w/2+16, c.y-c.h/2+29);
-  }
-
-  function roundRect(ctx, x, y, w, h, r, fill, stroke){
-    const rr = Math.min(r, w/2, h/2);
-    ctx.beginPath();
-    ctx.moveTo(x+rr, y);
-    ctx.arcTo(x+w, y, x+w, y+h, rr);
-    ctx.arcTo(x+w, y+h, x, y+h, rr);
-    ctx.arcTo(x, y+h, x, y, rr);
-    ctx.arcTo(x, y, x+w, y, rr);
-    ctx.closePath();
-    if(fill) ctx.fill();
-    if(stroke) ctx.stroke();
-  }
-
-  function drawEffects(){
-    // キノコ雲っぽい水蒸気（もちろん水の演出）
-    for(const cl of clouds){
-      ctx.save();
-      ctx.globalAlpha = cl.a;
-      ctx.fillStyle = "rgba(170,220,255,0.20)";
-      ctx.beginPath();
-      ctx.arc(cl.x, cl.y, cl.r, 0, Math.PI*2);
-      ctx.fill();
-      ctx.restore();
+    // 時間減少
+    timeLeft -= 1/60;
+    if(timeLeft <= 0) {
+      timeLeft = 0;
+      running = false;
+      alert(`終了！スコア: ${score}\n爆発させた魂の数だけ、明日は明るい！`);
+      location.reload();
     }
 
-    // リング波
-    for(const r of rings){
-      ctx.save();
-      ctx.globalAlpha = r.a;
-      ctx.strokeStyle = "rgba(120,210,255,0.65)";
-      ctx.lineWidth = r.w;
-      ctx.beginPath();
-      ctx.arc(r.x, r.y, r.rad, 0, Math.PI*2);
-      ctx.stroke();
-      ctx.restore();
-    }
+    // カップル更新
+    if(Math.random() < 0.03 && couples.length < 5) couples.push(createCouple());
+    
+    couples.forEach((c, i) => {
+      c.x += c.vx;
+      if(c.x < -200 || c.x > width + 200) couples.splice(i, 1);
+    });
 
-    // 水しぶき粒
-    for(const p of particles){
-      ctx.save();
-      ctx.globalAlpha = p.a;
-      ctx.fillStyle = "rgba(120,220,255,0.85)";
+    // 粒子更新
+    particles.forEach((p, i) => {
+      p.x += p.vx; p.y += p.vy;
+      p.life -= 0.02;
+      if(p.life <= 0) particles.splice(i, 1);
+    });
+
+    draw();
+    requestAnimationFrame(update);
+  }
+
+  function draw() {
+    ctx.save();
+    // スクリーンシェイク適用
+    const sx = (Math.random()-0.5) * shake;
+    const sy = (Math.random()-0.5) * shake;
+    ctx.translate(sx, sy);
+
+    // 背景（公園の地面っぽく）
+    ctx.fillStyle = '#1a2a1a';
+    ctx.fillRect(-100, -100, width+200, height+200);
+    
+    // 道
+    ctx.fillStyle = '#333';
+    ctx.fillRect(0, height*0.4, width, height*0.5);
+
+    // カップル描画
+    couples.forEach(c => {
+      drawPerson(ctx, c.x, c.y, c.p1, false);
+      drawPerson(ctx, c.x, c.y, c.p2, true);
+      // ハート
+      ctx.fillStyle = '#ff0000';
+      ctx.font = '20px Arial';
+      ctx.fillText('❤️', c.x-10, c.y-30);
+    });
+
+    // 爆発描画
+    particles.forEach(p => {
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
       ctx.fill();
-      ctx.restore();
-    }
-  }
-
-  function drawHUD(){
-    // 画面内に「タップで投げる」軽く出す
-    ctx.fillStyle = "rgba(0,0,0,0.28)";
-    ctx.fillRect(12, 12, 360, 36);
-    ctx.fillStyle = "rgba(255,255,255,0.85)";
-    ctx.font = "16px system-ui, -apple-system, sans-serif";
-    ctx.fillText("相手をタップ → 水風船投げる（巨大スプラッシュ）", 20, 36);
-  }
-
-  function draw(){
-    ctx.clearRect(0,0,cv.width,cv.height);
-    drawBackground();
-
-    // 奥→手前順
-    for(const c of couples) if(c.alive) drawCouple(c);
-    drawEffects();
-    drawHUD();
-  }
-
-  // ====== ゲームロジック ======
-  function rebuildTargets(){
-    targetsEl.innerHTML = "";
-    couples.forEach((c, idx) => {
-      const btn = document.createElement("button");
-      btn.className = "tbtn";
-      btn.innerHTML = `<div class="big">🎯 ${idx+1}. ${c.name}</div>
-                       <div class="mini">雰囲気: ${c.tag} / 服: ${c.p1.outfit} & ${c.p2.outfit}</div>`;
-      btn.onclick = () => throwBalloonAt(c.x, c.y, c);
-      targetsEl.appendChild(btn);
     });
+
+    ctx.restore();
+
+    // UI更新
+    scoreEl.innerText = score;
+    timeEl.innerText = timeLeft.toFixed(1);
+    soulInner.style.width = soul + '%';
   }
 
-  function spawnIfNeeded(dt){
-    spawnTimer += dt;
-    if(spawnTimer >= SPAWN_INTERVAL_MS){
-      spawnTimer = 0;
-      // 画面にいる数を保つ
-      while(couples.length < MAX_COUPLES_ON_SCREEN){
-        couples.push(makeCouple());
-      }
-      rebuildTargets();
-    }
-  }
-
-  function moveCouples(dt){
-    const k = dt/16.67;
-    for(const c of couples){
-      c.x += c.vx * k;
-      if(c.x < 170){ c.x = 170; c.vx *= -1; }
-      if(c.x > cv.width-170){ c.x = cv.width-170; c.vx *= -1; }
-    }
-  }
-
-  function throwBalloonAt(x, y, target){
-    if(!running || paused) return;
-    const now = performance.now();
-    if(now - lastThrowAt < WATER_BALLOON_COOLDOWN_MS) return;
-    lastThrowAt = now;
-
-    // 当たり判定（対象の枠内ならHIT、外ならMISS）
+  // タップ・クリック判定
+  function tap(ex, ey) {
+    if(!running) return;
     let hit = false;
-    if(target){
-      hit = pointInRect(x, y, target.x-target.w/2, target.y-target.h/2, target.w, target.h);
-    } else {
-      // タップ位置から一番近いカップルに対して判定
-      const nearest = findNearestCouple(x,y);
-      if(nearest){
-        hit = pointInRect(x, y, nearest.x-nearest.w/2, nearest.y-nearest.h/2, nearest.w, nearest.h);
-        target = nearest;
+    couples.forEach((c, i) => {
+      const dx = ex - c.x;
+      const dy = ey - c.y;
+      if(Math.abs(dx) < 80 && Math.abs(dy) < 60) {
+        createExplosion(c.x, c.y);
+        couples.splice(i, 1);
+        score += 100 + (combo * 20);
+        combo++;
+        soul = Math.min(100, soul + 10);
+        hit = true;
+        showCombo();
       }
-    }
+    });
 
-    if(hit && target){
-      hits++;
-      score += 120;
-
-      // ド派手な水しぶき（キノコ雲風）
-      megaSplash(target.x, target.y-10);
-
-      // 一瞬で次のカップルに入れ替え
-      const idx = couples.findIndex(c => c.id === target.id);
-      if(idx >= 0){
-        couples.splice(idx, 1);
-        couples.push(makeCouple());
-        rebuildTargets();
-      }
-      msgEl.textContent = "HIT！巨大スプラッシュ！💦";
-    } else {
-      score = Math.max(0, score - 20);
-      smallSplash(x, y);
-      msgEl.textContent = "MISS… 次いこ！";
-    }
-    updateUI();
-  }
-
-  function pointInRect(px, py, x, y, w, h){
-    return (px>=x && px<=x+w && py>=y && py<=y+h);
-  }
-
-  function findNearestCouple(x,y){
-    let best = null, bestD = 1e18;
-    for(const c of couples){
-      const dx = c.x-x, dy = c.y-y;
-      const d = dx*dx + dy*dy;
-      if(d < bestD){ bestD = d; best = c; }
-    }
-    return best;
-  }
-
-  function smallSplash(x,y){
-    for(let i=0;i<40;i++){
-      particles.push({
-        x, y,
-        vx: rnd(-6,6),
-        vy: rnd(-10,-2),
-        r: rnd(1.6,3.4),
-        a: 1
-      });
-    }
-    rings.push({ x, y, rad: 10, a: 0.7, w: 3 });
-  }
-
-  function megaSplash(x,y){
-    // 中心のリング波を複数
-    for(let i=0;i<SPLASH_RING_COUNT;i++){
-      rings.push({ x, y: y+30, rad: 20+i*18, a: 0.75 - i*0.10, w: 4-i*0.4 });
-    }
-
-    // 水しぶき粒子（大量）
-    for(let i=0;i<SPLASH_PARTICLES;i++){
-      const ang = rnd(-Math.PI, 0); // 上方向に飛ばす
-      const sp = rnd(4, SPLASH_SPEED) * (i%7===0 ? 1.3 : 1);
-      particles.push({
-        x: x + rnd(-6,6),
-        y: y + rnd(-6,6),
-        vx: Math.cos(ang)*sp + rnd(-1.2,1.2),
-        vy: Math.sin(ang)*sp + rnd(-1.2,1.2),
-        r: rnd(1.8, 4.6),
-        a: 1
-      });
-    }
-
-    // キノコ雲っぽい“水蒸気”雲（もちろん比喩）
-    for(let i=0;i<24;i++){
-      const up = i<8 ? 1 : 0;
-      clouds.push({
-        x: x + rnd(-60,60),
-        y: y - 10 - i*8 + rnd(-10,10),
-        r: rnd(18, 48) * (up?1.25:1.0),
-        a: rnd(0.10, 0.22)
-      });
+    if(!hit) {
+      combo = 0;
+      soul = Math.max(0, soul - 5);
     }
   }
 
-  function updateEffects(dt){
-    const k = dt/16.67;
-
-    // 粒子
-    for(let i=particles.length-1;i>=0;i--){
-      const p = particles[i];
-      p.vy += SPLASH_GRAVITY * k;
-      p.x += p.vx * k;
-      p.y += p.vy * k;
-      p.a -= 0.012 * k;
-      p.r *= (1 - 0.0018*k);
-
-      if(p.y > cv.height || p.a <= 0 || p.r < 0.5) particles.splice(i,1);
-    }
-
-    // リング
-    for(let i=rings.length-1;i>=0;i--){
-      const r = rings[i];
-      r.rad += 10*k;
-      r.a -= 0.018*k;
-      if(r.a <= 0) rings.splice(i,1);
-    }
-
-    // 雲
-    for(let i=clouds.length-1;i>=0;i--){
-      const c = clouds[i];
-      c.y -= 0.35*k;
-      c.r += 0.22*k;
-      c.a -= 0.0028*k;
-      if(c.a <= 0) clouds.splice(i,1);
-    }
+  function showCombo() {
+    if(combo < 2) return;
+    comboEl.innerText = `${combo} COMBO!!`;
+    comboEl.style.opacity = 1;
+    setTimeout(() => comboEl.style.opacity = 0, 500);
   }
 
-  // ====== ループ ======
-  function loop(now){
-    if(!running) return;
-    const dt = clamp(now - lastFrame, 0, 50);
-    lastFrame = now;
+  cv.addEventListener('pointerdown', e => tap(e.clientX, e.clientY));
 
-    if(!paused){
-      const remain = (endAt - now)/1000;
-      if(remain <= 0){
-        timeEl.textContent = "0.0";
-        running = false;
-        paused = false;
-        msgEl.textContent = `終了！ SCORE=${score} / HITS=${hits} 💦`;
-        overlay.style.display = "grid";
-        // overlayの文言を変えず、Startで再開できる
-        return;
-      }
-      timeEl.textContent = remain.toFixed(1);
-
-      spawnIfNeeded(dt);
-      moveCouples(dt);
-      updateEffects(dt);
-      updateUI();
-      draw();
-    }
-
-    requestAnimationFrame(loop);
-  }
-
-  // ====== 入力 ======
-  function canvasToWorld(ev){
-    const rect = cv.getBoundingClientRect();
-    const x = (ev.clientX - rect.left) * (cv.width / rect.width);
-    const y = (ev.clientY - rect.top) * (cv.height / rect.height);
-    return {x,y};
-  }
-
-  cv.addEventListener('pointerdown', (ev) => {
-    const {x,y} = canvasToWorld(ev);
-    // タップ位置に一番近いカップルへ投げる（当たらないこともある）
-    const target = findNearestCouple(x,y);
-    throwBalloonAt(x,y,target);
+  startBtn.addEventListener('click', () => {
+    overlay.style.display = 'none';
+    running = true;
+    update();
   });
 
-  startBtn.addEventListener('click', start);
-
-  pauseBtn.addEventListener('click', () => {
-    if(!running) return;
-    paused = !paused;
-    pauseBtn.textContent = paused ? "再開" : "一時停止";
-    msgEl.textContent = paused ? "一時停止中" : "再開！";
-    if(!paused) requestAnimationFrame(loop);
-  });
-
-  resetBtn.addEventListener('click', () => {
-    reset();
-    overlay.style.display = "grid";
-    pauseBtn.textContent = "一時停止";
-  });
-
-  // 初期表示
-  reset();
-  draw();
 })();
 </script>
 </body>
