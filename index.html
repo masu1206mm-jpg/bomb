@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
-  <title>カップル爆破！〜終末の粛清フラッシュ〜</title>
+  <title>カップル爆破！〜全方位粛清フラッシュ〜</title>
   <style>
     :root { --pink: #ff00ff; --cyan: #00ffff; }
     body { margin: 0; background: #000; color: #fff; font-family: 'Arial Black', sans-serif; overflow: hidden; user-select: none; }
@@ -78,12 +78,11 @@
     timeLeft -= 1/60;
     if(timeLeft <= 0) {
       running = false;
-      alert(`【終焉】 スコア: ${score.toLocaleString()}`);
+      alert(`【終焉】 スコア: ` + score.toLocaleString());
       location.reload();
       return;
     }
 
-    // ボス出現
     if(soul >= 100 && !boss) {
       boss = { x: width/2, y: -250, hp: 150, targetY: height/2, beamTimer: 0, isBeaming: false, charge: 0 };
       soul = 99;
@@ -108,9 +107,8 @@
       }
     }
 
-    // ザコ増殖
-    let spawnRate = boss ? 0.6 : 0.15;
-    let maxLimit = boss ? 150 : 30;
+    let spawnRate = boss ? 0.7 : 0.2;
+    let maxLimit = boss ? 180 : 40;
 
     if(couples.length < maxLimit && Math.random() < spawnRate) {
        couples.push({
@@ -129,10 +127,10 @@
           return;
       }
 
-      // 光線による粛清
       if(boss && boss.isBeaming) {
-        for(let j=0; j<12; j++) {
-            const angle = (j * Math.PI) / 6;
+        const beamCount = 16; 
+        for(let j=0; j < beamCount; j++) {
+            const angle = (j * Math.PI * 2) / beamCount;
             const dx = c.x - boss.x;
             const dy = c.y - boss.y;
             const dist = Math.abs(dx * Math.sin(angle) - dy * Math.cos(angle));
@@ -170,9 +168,10 @@
       if(boss.isBeaming) {
         ctx.save();
         ctx.translate(boss.x, boss.y);
-        for(let j=0; j<12; j++) {
+        const beamCount = 16;
+        for(let j=0; j < beamCount; j++) {
             ctx.save();
-            ctx.rotate((j * Math.PI) / 6);
+            ctx.rotate((j * Math.PI * 2) / beamCount);
             const grad = ctx.createLinearGradient(0, -50, 0, 50);
             grad.addColorStop(0, "transparent");
             grad.addColorStop(0.5, boss.beamTimer % 4 < 2 ? "white" : "#ff00ff");
