@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
-  <title>カップル爆破ゲーム！魂の解放（真・ラスボス降臨）</title>
+  <title>カップル爆破ゲーム！真・ラスボス降臨</title>
   <style>
     :root { --main-red: #ff3300; --soul-orange: #ffaa00; }
     body {
@@ -21,17 +21,13 @@
     }
     .soul-gauge-container {
       position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-      width: 80%; height: 20px; background: rgba(255,255,255,0.2);
+      width: 80%; height: 100px; /* ゲージを少し太く */
+      background: rgba(255,255,255,0.2);
       border: 2px solid #fff; border-radius: 10px; overflow: hidden;
     }
     #soul-inner {
       width: 0%; height: 100%; background: linear-gradient(90deg, var(--soul-orange), var(--main-red));
       transition: width 0.1s;
-    }
-    #combo-text {
-      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      font-size: 60px; color: var(--main-red); font-weight: 900;
-      opacity: 0; pointer-events: none; text-shadow: 0 0 20px #fff;
     }
     #boss-alert {
       position: absolute; top: 30%; width: 100%; text-align: center;
@@ -55,10 +51,8 @@
 <body>
 
   <div class="overlay" id="overlay">
-    <div class="title-area">
-      <h1>カップル爆破ゲーム！</h1>
-      <p>魂を燃やせ！真の王が降臨する🔥</p>
-    </div>
+    <h1>カップル爆破ゲーム！</h1>
+    <p>魂を燃やせ！真の王が降臨する🔥</p>
     <button class="start-btn" id="startBtn">魂を燃やす（スタート）</button>
   </div>
 
@@ -67,10 +61,10 @@
       <div>SCORE: <span id="score">0</span></div>
       <div>TIME: <span id="time">30.0</span></div>
     </div>
-    <div id="combo-text">COMBO!!</div>
     <div id="boss-alert">真の爆破王、降臨！！</div>
     <div class="soul-gauge-container">
       <div id="soul-inner"></div>
+      <div style="position:absolute; top:0; width:100%; text-align:center; font-size:12px; line-height:20px;">BOSS SOUL GAUGE</div>
     </div>
   </div>
 
@@ -83,19 +77,17 @@
   const scoreEl = document.getElementById('score');
   const timeEl = document.getElementById('time');
   const soulInner = document.getElementById('soul-inner');
-  const comboEl = document.getElementById('combo-text');
   const bossAlert = document.getElementById('boss-alert');
   const startBtn = document.getElementById('startBtn');
   const overlay = document.getElementById('overlay');
 
-  // --- 画像読み込みの改善 ---
+  // 画像の読み込み（エラーになってもゲームは止めない）
   const bossImg = new Image();
-  bossImg.crossOrigin = "anonymous"; 
+  bossImg.crossOrigin = "anonymous";
   bossImg.src = 'https://r.jina.ai/i/13677da714314c9c849cc791c140411a'; 
 
   let width, height, score = 0, timeLeft = 30, running = false;
-  let couples = [], particles = [], shake = 0, combo = 0, soul = 0;
-  let boss = null;
+  let couples = [], particles = [], shake = 0, soul = 0, boss = null;
 
   function resize() {
     width = cv.width = window.innerWidth;
@@ -104,81 +96,45 @@
   window.addEventListener('resize', resize);
   resize();
 
-  function createCouple() {
-    const isLeft = Math.random() > 0.5;
-    return {
-      x: isLeft ? -100 : width + 100,
-      y: height * 0.4 + Math.random() * height * 0.4,
-      vx: (isLeft ? 1 : -1) * (2 + Math.random() * 3),
-      p1: { color: `hsl(${Math.random()*360}, 60%, 70%)` },
-      p2: { color: `hsl(${Math.random()*360}, 60%, 70%)` }
-    };
-  }
-
   function createBoss() {
     bossAlert.style.display = 'block';
     setTimeout(() => { bossAlert.style.display = 'none'; }, 2000);
-    return {
-      x: width / 2,
-      y: -400,
-      targetY: height / 2 - 100,
-      hp: 35,
-      size: 280,
-      state: 'entry'
-    };
-  }
-
-  function createExplosion(x, y, isBoss = false) {
-    shake = isBoss ? 50 : 15;
-    const count = isBoss ? 200 : 40;
-    for(let i=0; i<count; i++) {
-      particles.push({
-        x, y,
-        vx: (Math.random()-0.5) * (isBoss ? 60 : 20),
-        vy: (Math.random()-0.5) * (isBoss ? 60 : 20),
-        r: Math.random() * (isBoss ? 30 : 15) + 5,
-        life: 1.0,
-        color: isBoss ? '#fff' : (Math.random() > 0.5 ? '#ff4400' : '#ffaa00')
-      });
-    }
+    return { x: width / 2, y: -300, targetY: height / 3, hp: 40, size: 250, state: 'entry' };
   }
 
   function drawBoss(ctx, b) {
     ctx.save();
     ctx.translate(b.x, b.y);
     
+    // 円形切り抜き
     ctx.beginPath();
     ctx.arc(0, 0, b.size/2, 0, Math.PI*2);
     ctx.clip();
 
-    // 読み込みが完了しているかチェック。失敗していてもフリーズしないようにする
     if (bossImg.complete && bossImg.naturalWidth > 0) {
+      // 写真を表示
       ctx.drawImage(bossImg, -b.size/2, -b.size/2, b.size, b.size);
     } else {
+      // 読み込み中/失敗時は紫の円
       ctx.fillStyle = '#800080';
       ctx.fillRect(-b.size/2, -b.size/2, b.size, b.size);
-      ctx.fillStyle = '#fff';
-      ctx.textAlign = 'center';
-      ctx.fillText('LOADING...', 0, 0);
     }
-    
     ctx.restore();
-    ctx.strokeStyle = 'gold';
-    ctx.lineWidth = 8;
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, b.size/2, 0, Math.PI*2);
-    ctx.stroke();
 
-    ctx.fillStyle = '#333';
-    ctx.fillRect(b.x - 100, b.y - b.size/2 - 40, 200, 15);
-    ctx.fillStyle = 'lime';
-    ctx.fillRect(b.x - 100, b.y - b.size/2 - 40, (b.hp/35)*200, 15);
+    // 金のフレーム
+    ctx.strokeStyle = 'gold';
+    ctx.lineWidth = 10;
+    ctx.strokeRect(b.x - b.size/2, b.y - b.size/2, b.size, b.size); // 敢えて四角い枠で強調
+
+    // ボスHP
+    ctx.fillStyle = 'red';
+    ctx.fillRect(b.x - 100, b.y - b.size/2 - 30, (b.hp/40)*200, 15);
   }
 
   function update() {
     if(!running) return;
-    if(shake > 0) shake *= 0.9;
     timeLeft -= 1/60;
+    if(shake > 0) shake *= 0.9;
 
     if(timeLeft <= 0) {
       running = false;
@@ -189,128 +145,95 @@
 
     if(soul >= 100 && !boss) {
       boss = createBoss();
-      soul = 99; 
+      soul = 99;
     }
 
     if(boss) {
       if(boss.state === 'entry') {
-        boss.y += 4;
+        boss.y += 5;
         if(boss.y >= boss.targetY) boss.state = 'fight';
       } else {
-        boss.x += Math.sin(Date.now()/500) * 4;
-        boss.y += Math.cos(Date.now()/700) * 2;
+        boss.x += Math.sin(Date.now()/400) * 5;
       }
     }
 
-    if(Math.random() < 0.05 && couples.length < 7) {
-      couples.push(createCouple());
-    }
-    
-    for(let i = couples.length - 1; i >= 0; i--) {
-      couples[i].x += couples[i].vx;
-      if(couples[i].x < -200 || couples[i].x > width + 200) couples.splice(i, 1);
+    // カップル出現（ボス中でも出現）
+    if(Math.random() < 0.05 && couples.length < 8) {
+      const isLeft = Math.random() > 0.5;
+      couples.push({
+        x: isLeft ? -50 : width + 50,
+        y: height * 0.4 + Math.random() * height * 0.4,
+        vx: (isLeft ? 1 : -1) * (2 + Math.random() * 2),
+        color: `hsl(${Math.random()*360}, 70%, 70%)`
+      });
     }
 
-    for(let i = particles.length - 1; i >= 0; i--) {
-      particles[i].x += particles[i].vx;
-      particles[i].y += particles[i].vy;
-      particles[i].life -= 0.02;
-      if(particles[i].life <= 0) particles.splice(i, 1);
-    }
+    couples.forEach((c, i) => {
+      c.x += c.vx;
+      if(c.x < -100 || c.x > width + 100) couples.splice(i, 1);
+    });
 
     draw();
     requestAnimationFrame(update);
   }
 
   function draw() {
+    ctx.clearRect(0, 0, width, height);
     ctx.save();
     ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
-    ctx.fillStyle = boss ? '#400040' : '#1a2a1a';
+    
+    ctx.fillStyle = boss ? '#300' : '#121';
     ctx.fillRect(0, 0, width, height);
-    ctx.fillStyle = 'rgba(100,100,100,0.3)';
-    ctx.fillRect(0, height*0.4, width, height*0.5);
 
     if(boss) drawBoss(ctx, boss);
 
     couples.forEach(c => {
-      drawPerson(ctx, c.x, c.y, c.p1, false);
-      drawPerson(ctx, c.x, c.y, c.p2, true);
-      ctx.fillStyle = '#ff0000'; ctx.font = '24px Arial'; ctx.fillText('❤️', c.x-12, c.y-30);
+      ctx.fillStyle = c.color;
+      ctx.beginPath(); ctx.arc(c.x-20, c.y, 20, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(c.x+20, c.y, 20, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = 'red'; ctx.fillText('❤️', c.x-10, c.y-20);
     });
 
-    particles.forEach(p => {
-      ctx.globalAlpha = p.life; ctx.fillStyle = p.color;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
-    });
     ctx.restore();
-
-    scoreEl.innerText = Math.floor(score);
+    scoreEl.innerText = score;
     timeEl.innerText = timeLeft.toFixed(1);
     soulInner.style.width = soul + '%';
   }
 
-  function drawPerson(ctx, x, y, p, isRight) {
-    const offset = isRight ? 25 : -25;
-    ctx.fillStyle = p.color;
-    ctx.beginPath(); ctx.ellipse(x + offset, y + 40, 20, 30, 0, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#ffdbac';
-    ctx.beginPath(); ctx.arc(x + offset, y, 20, 0, Math.PI*2); ctx.fill();
-  }
-
-  function tap(ex, ey) {
+  cv.addEventListener('pointerdown', e => {
     if(!running) return;
+    const { clientX: ex, clientY: ey } = e;
     let hit = false;
 
     if(boss) {
       const dist = Math.sqrt((ex-boss.x)**2 + (ey-boss.y)**2);
       if(dist < boss.size/2) {
         boss.hp--;
-        createExplosion(ex, ey, false);
-        score += 1500;
+        score += 1000;
+        shake = 10;
         hit = true;
         if(boss.hp <= 0) {
-          createExplosion(boss.x, boss.y, true);
-          boss = null;
-          score += 30000;
-          soul = 0;
-          alert("真の現実を爆破した！");
+          alert("真の爆破王を倒した！");
+          boss = null; soul = 0; score += 50000;
         }
       }
     }
 
-    for(let i = couples.length - 1; i >= 0; i--) {
-      const c = couples[i];
-      if(Math.abs(ex - c.x) < 80 && Math.abs(ey - c.y) < 60) {
-        createExplosion(c.x, c.y);
+    couples.forEach((c, i) => {
+      if(Math.abs(ex - c.x) < 60 && Math.abs(ey - c.y) < 40) {
         couples.splice(i, 1);
-        score += 100 + (combo * 50);
-        combo++;
+        score += 500;
         soul = Math.min(100, soul + 15);
+        shake = 5;
         hit = true;
-        showCombo();
-        break; 
       }
-    }
-
-    if(!hit) { combo = 0; soul = Math.max(0, soul - 10); }
-  }
-
-  function showCombo() {
-    if(combo < 2) return;
-    comboEl.innerText = `${combo} COMBO!!`;
-    comboEl.style.opacity = 1;
-    setTimeout(() => comboEl.style.opacity = 0, 500);
-  }
-
-  cv.addEventListener('pointerdown', e => {
-    e.preventDefault();
-    tap(e.clientX, e.clientY);
+    });
   });
-  
-  startBtn.addEventListener('click', () => { 
-    overlay.style.display = 'none'; 
-    running = true; 
-    update(); 
+
+  startBtn.addEventListener('click', () => {
+    overlay.style.display = 'none';
+    running = true;
+    update();
   });
 })();
 </script>
