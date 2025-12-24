@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
-  <title>カップル爆破！〜全方位粛清フラッシュ〜</title>
+  <title>カップル爆破！〜終末の粛清フラッシュ〜</title>
   <style>
     :root { --pink: #ff00ff; --cyan: #00ffff; }
     body { margin: 0; background: #000; color: #fff; font-family: 'Arial Black', sans-serif; overflow: hidden; user-select: none; }
@@ -13,17 +13,17 @@
       position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
       width: 90%; height: 12px; background: rgba(255,255,255,0.1); border: 1px solid #fff; border-radius: 10px; overflow: hidden;
     }
-    #soul-inner { width: 0%; height: 100%; background: linear-gradient(90deg, var(--cyan), var(--pink)); transition: width 0.1s; }
+    #soul-inner { width: 0%; height: 100%; background: linear-gradient(90deg, #00ffff, #ff00ff); transition: width 0.1s; }
     canvas { display: block; touch-action: none; background: #000; }
     .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; text-align: center; padding: 20px; }
-    .start-btn { margin-top: 30px; padding: 25px 80px; font-size: 28px; background: var(--pink); color: #fff; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; box-shadow: 0 0 40px var(--pink); }
+    .start-btn { margin-top: 30px; padding: 25px 80px; font-size: 28px; background: #ff00ff; color: #fff; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; box-shadow: 0 0 40px #ff00ff; }
   </style>
 </head>
 <body>
 
   <div class="overlay" id="overlay">
     <h1>💥 カップル爆破！全方位粛清</h1>
-    <p>王の怒りが360度爆発する！<br>極太の<span style="color:var(--pink); font-size: 1.3em;">「全方位イチャイチャ光線」</span>で<br>画面上の不純異性交遊を根絶せよ！</p>
+    <p>王の怒りが360度爆発する！<br>極太の<span style="color:#ff00ff; font-size: 1.3em;">「全方位イチャイチャ光線」</span>で<br>画面上の不純異性交遊を根絶せよ！</p>
     <button class="start-btn" id="startBtn">殲滅開始</button>
   </div>
 
@@ -62,7 +62,7 @@
   function createExplosion(x, y, isBoss = false, txt = "") {
     shake = isBoss ? 150 : 8;
     if(txt) texts.push({ x, y, val: txt, life: 1.0 });
-    const count = isBoss ? 200 : 4;
+    const count = isBoss ? 200 : 5;
     for(let i=0; i<count; i++) {
       particles.push({
         x, y, vx: (Math.random()-0.5)*25, vy: (Math.random()-0.5)*25,
@@ -78,12 +78,12 @@
     timeLeft -= 1/60;
     if(timeLeft <= 0) {
       running = false;
-      alert(`【審判】 スコア: ${score.toLocaleString()}`);
+      alert(`【終焉】 スコア: ${score.toLocaleString()}`);
       location.reload();
       return;
     }
 
-    // ボス召喚
+    // ボス出現
     if(soul >= 100 && !boss) {
       boss = { x: width/2, y: -250, hp: 150, targetY: height/2, beamTimer: 0, isBeaming: false, charge: 0 };
       soul = 99;
@@ -93,9 +93,8 @@
       if(boss.y < boss.targetY) boss.y += 10;
       boss.beamTimer++;
       
-      // 溜め
       if(!boss.isBeaming && boss.beamTimer > 80) {
-          boss.charge += 5;
+          boss.charge += 4;
           if(boss.charge >= 100) {
               boss.isBeaming = true;
               boss.beamTimer = 0;
@@ -103,29 +102,24 @@
               shake = 100;
           }
       }
-      // 発射中
       if(boss.isBeaming && boss.beamTimer > 50) {
         boss.isBeaming = false;
         boss.beamTimer = 0;
       }
     }
 
-    // 10倍増殖
-    let spawnCount = boss ? 8 : 1; 
+    // ザコ増殖
+    let spawnRate = boss ? 0.6 : 0.15;
     let maxLimit = boss ? 150 : 30;
 
-    if(couples.length < maxLimit) {
-      for(let i=0; i<spawnCount; i++) {
-        if(Math.random() < 0.2) {
-           couples.push({
-             x: Math.random() * width,
-             y: Math.random() * height,
-             vx: (Math.random()-0.5) * 8,
-             vy: (Math.random()-0.5) * 8,
-             char: emoji[Math.floor(Math.random()*emoji.length)]
-           });
-        }
-      }
+    if(couples.length < maxLimit && Math.random() < spawnRate) {
+       couples.push({
+         x: Math.random() * width,
+         y: Math.random() * height,
+         vx: (Math.random()-0.5) * 10,
+         vy: (Math.random()-0.5) * 10,
+         char: emoji[Math.floor(Math.random()*emoji.length)]
+       });
     }
     
     couples.forEach((c, i) => {
@@ -135,13 +129,12 @@
           return;
       }
 
-      // 【修正】全方位光線判定
+      // 光線による粛清
       if(boss && boss.isBeaming) {
         for(let j=0; j<12; j++) {
             const angle = (j * Math.PI) / 6;
             const dx = c.x - boss.x;
             const dy = c.y - boss.y;
-            // 点と線の距離判定
             const dist = Math.abs(dx * Math.sin(angle) - dy * Math.cos(angle));
             if(dist < 60) {
                 createExplosion(c.x, c.y, false);
@@ -170,13 +163,11 @@
   function draw() {
     ctx.save();
     ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
-    // 発射中は背景もフラッシュ
     ctx.fillStyle = boss && boss.isBeaming && boss.beamTimer % 2 === 0 ? '#404' : '#000';
     ctx.fillRect(0, 0, width, height);
 
     if(boss) {
       if(boss.isBeaming) {
-        // 全方位光線描画（放射状）
         ctx.save();
         ctx.translate(boss.x, boss.y);
         for(let j=0; j<12; j++) {
@@ -187,19 +178,16 @@
             grad.addColorStop(0.5, boss.beamTimer % 4 < 2 ? "white" : "#ff00ff");
             grad.addColorStop(1, "transparent");
             ctx.fillStyle = grad;
-            // 画面端まで届くように描画
-            ctx.fillRect(0, -50, width * 1.5, 100);
+            ctx.fillRect(0, -50, width * 2, 100);
             ctx.restore();
         }
         ctx.restore();
       }
-
-      // ボス描画
       ctx.font = '110px Arial'; ctx.textAlign = 'center';
       ctx.fillText('🤴', boss.x - 70, boss.y + 30);
       ctx.fillText('👸', boss.x + 70, boss.y + 30);
       if(boss.charge > 0) {
-          ctx.strokeStyle = var(--cyan);
+          ctx.strokeStyle = '#00ffff';
           ctx.lineWidth = 5;
           ctx.beginPath();
           ctx.arc(boss.x, boss.y, boss.charge * 2, 0, Math.PI*2);
@@ -230,23 +218,24 @@
 
   function tap(ex, ey) {
     if(!running) return;
-    let hit = false;
     if(boss) {
       const d = Math.sqrt((ex-boss.x)**2 + (ey-boss.y)**2);
       if(d < 180) {
         boss.hp--; createExplosion(ex, ey, false, "✨");
-        score += 10000; hit = true;
+        score += 10000;
         if(boss.hp <= 0) {
           createExplosion(boss.x, boss.y, true, "G A M E  C L E A R");
           boss = null; score += 2000000; soul = 0; timeLeft = Math.min(30, timeLeft + 20);
         }
+        return;
       }
     }
     for(let i = couples.length - 1; i >= 0; i--) {
       const c = couples[i];
       if(Math.abs(ex - c.x) < 60 && Math.abs(ey - c.y) < 60) {
         createExplosion(c.x, c.y, false);
-        couples.splice(i, 1); score += 5000; soul = Math.min(100, soul + 10); hit = true;
+        couples.splice(i, 1); score += 5000; soul = Math.min(100, soul + 10);
+        break;
       }
     }
   }
