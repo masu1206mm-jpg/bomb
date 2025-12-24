@@ -3,32 +3,34 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
-  <title>カップル爆破！〜男女ペア殲滅作戦〜</title>
+  <title>カップル爆破！〜絶望のボス光線〜</title>
   <style>
-    :root { --main-red: #ff0000; --pink: #ff69b4; }
-    body { margin: 0; background: #000; color: #fff; font-family: 'Hiragino Kaku Gothic ProN', sans-serif; overflow: hidden; user-select: none; }
+    :root { --main-red: #ff0000; --pink: #ff00ff; }
+    body { margin: 0; background: #000; color: #fff; font-family: 'Arial Black', sans-serif; overflow: hidden; user-select: none; }
     #game-ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
-    .status-bar { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; font-size: 20px; font-weight: bold; }
+    .status-bar { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; font-size: 22px; font-weight: bold; }
     #damage-flash { position: fixed; inset: 0; background: red; opacity: 0; pointer-events: none; z-index: 5; }
-    #danger-msg { position: absolute; top: 50%; width: 100%; text-align: center; color: yellow; font-size: 30px; font-weight: 900; opacity: 0; transition: opacity 0.1s; text-shadow: 2px 2px #f00; }
+    #boss-warning { position: absolute; top: 40%; width: 100%; text-align: center; color: #ff00ff; font-size: 32px; font-weight: 900; display: none; text-shadow: 0 0 10px #fff; animation: flash 0.5s infinite; }
+    @keyframes flash { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
     .soul-gauge-container {
       position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-      width: 80%; height: 25px; background: rgba(255,255,255,0.2); border: 2px solid #fff; border-radius: 10px; overflow: hidden;
+      width: 80%; height: 20px; background: rgba(255,255,255,0.2); border: 2px solid #fff; border-radius: 10px; overflow: hidden;
     }
     #soul-inner { width: 0%; height: 100%; background: linear-gradient(90deg, #ffaa00, #ff0000); transition: width 0.1s; }
-    canvas { display: block; touch-action: none; background: #000; }
-    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; text-align: center; padding: 20px; }
-    .start-btn { margin-top: 30px; padding: 20px 50px; font-size: 24px; background: var(--main-red); color: #fff; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; }
+    canvas { display: block; touch-action: none; background: #111; }
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; text-align: center; padding: 20px; }
+    .start-btn { margin-top: 30px; padding: 20px 60px; font-size: 26px; background: var(--main-red); color: #fff; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; box-shadow: 0 0 20px #f00; }
   </style>
 </head>
 <body>
 
   <div id="damage-flash"></div>
-  <div id="danger-msg">寿命減少中！！🚨</div>
+  <div id="boss-warning">🚨 ボスのイチャつき光線で寿命減少中！ 🚨</div>
+
   <div class="overlay" id="overlay">
-    <h1>💥 カップル爆破！</h1>
-    <p>男女のイチャつき光線で<br>君の寿命が吸い取られているぞ！<br><span style="color:yellow;">即座に引き離せ！</span></p>
-    <button class="start-btn" id="startBtn">作戦開始</button>
+    <h1>💥 カップル爆破！完全版</h1>
+    <p>ザコは爆破して魂を貯めろ！<br>ボスの<span style="color:#ff00ff;">「極太イチャイチャ光線」</span>は<br>君の命を削る、絶対に阻止せよ！</p>
+    <button class="start-btn" id="startBtn">殲滅開始</button>
   </div>
 
   <div id="game-ui">
@@ -51,11 +53,11 @@
   const startBtn = document.getElementById('startBtn');
   const overlay = document.getElementById('overlay');
   const damageFlash = document.getElementById('damage-flash');
-  const dangerMsg = document.getElementById('danger-msg');
+  const bossWarning = document.getElementById('boss-warning');
 
-  const men = ['👨', '👨‍🦰', '🧔', '👱‍♂️', '👨‍角', '🧑‍🦱'];
-  const women = ['👩', '👩‍🦰', '👱‍♀️', '👩‍🦳', '👩‍🦱', '👧'];
-  const shouts = ['爆発しろ！', '解散！', '密です！', '別れろ！', 'NO!!'];
+  const men = ['👨', '👱‍♂️', '🧔', '🧑‍🦱'];
+  const women = ['👩', '👱‍♀️', '👩‍🦳', '👩‍🦱'];
+  const shouts = ['爆！', '解散！', 'NO!!', '滅！'];
 
   let width, height, score = 0, timeLeft = 30, running = false;
   let couples = [], particles = [], texts = [], shake = 0, soul = 0, boss = null;
@@ -72,20 +74,19 @@
     return {
       x: isLeft ? -100 : width + 100,
       y: height * 0.2 + Math.random() * height * 0.6,
-      vx: (isLeft ? 1.5 : -1.5) * (1 + Math.random() * 2),
+      vx: (isLeft ? 1 : -1) * (2 + Math.random() * 2),
       m: men[Math.floor(Math.random()*men.length)],
-      w: women[Math.floor(Math.random()*women.length)],
-      angle: 0
+      w: women[Math.floor(Math.random()*women.length)]
     };
   }
 
   function createExplosion(x, y, isBoss = false) {
-    shake = isBoss ? 80 : 25;
+    shake = isBoss ? 80 : 20;
     texts.push({ x, y, val: shouts[Math.floor(Math.random()*shouts.length)], life: 1.0 });
-    for(let i=0; i<(isBoss?60:20); i++) {
+    for(let i=0; i<(isBoss?100:20); i++) {
       particles.push({
-        x, y, vx: (Math.random()-0.5)*20, vy: (Math.random()-0.5)*20,
-        life: 1.0, size: Math.random()*20+5, color: isBoss ? 'gold' : '#ff4400'
+        x, y, vx: (Math.random()-0.5)*15, vy: (Math.random()-0.5)*15,
+        life: 1.0, size: Math.random()*15+5, color: isBoss ? '#ff00ff' : '#ff4400'
       });
     }
   }
@@ -94,36 +95,37 @@
     if(!running) return;
     if(shake > 0) shake *= 0.9;
 
-    if(couples.length > 0) {
-      timeLeft -= couples.length * 0.015; // カップルの数だけ寿命が減る
-      damageFlash.style.opacity = 0.3 + Math.sin(Date.now()/50)*0.2;
-      dangerMsg.style.opacity = 1;
-      shake += 1; // 常に揺らす
+    // ボスのイチャイチャ光線による強烈なダメージ
+    if(boss) {
+      timeLeft -= 0.08; // ボスがいる間は寿命がゴリゴリ減る
+      damageFlash.style.opacity = 0.4 + Math.sin(Date.now()/50)*0.2;
+      bossWarning.style.display = 'block';
+      shake += 2;
     } else {
       damageFlash.style.opacity = 0;
-      dangerMsg.style.opacity = 0;
+      bossWarning.style.display = 'none';
     }
     
     timeLeft -= 1/60;
     if(timeLeft <= 0) {
       running = false;
-      alert(`【MISSION FAILED】 スコア: ${score}\nカップルを放置しすぎだ！`);
+      alert(`【敗北】 スコア: ${score}\nボスのリア充オーラに屈した…`);
       location.reload();
       return;
     }
 
+    // 魂が溜まったらボス出現
     if(soul >= 100 && !boss) {
-      boss = { x: width/2, y: -200, hp: 60, size: 200 };
+      boss = { x: width/2, y: -200, hp: 60, size: 180, targetY: height/3 };
       soul = 99;
     }
+    if(boss && boss.y < boss.targetY) boss.y += 3;
 
-    if(boss && boss.y < height/3) boss.y += 4;
-
-    if(Math.random() < 0.06 && couples.length < 10) couples.push(createCouple());
+    // ザコの出現
+    if(Math.random() < 0.05 && couples.length < 8) couples.push(createCouple());
     
     couples.forEach((c, i) => {
       c.x += c.vx;
-      c.angle = Math.sin(Date.now()/100) * 0.1;
       if(c.x < -200 || c.x > width + 200) couples.splice(i, 1);
     });
 
@@ -133,7 +135,7 @@
     });
 
     texts.forEach((t, i) => {
-      t.y -= 2; t.life -= 0.02;
+      t.y -= 1.5; t.life -= 0.02;
       if(t.life <= 0) texts.splice(i, 1);
     });
 
@@ -147,33 +149,40 @@
     ctx.fillStyle = boss ? '#200' : '#111';
     ctx.fillRect(0, 0, width, height);
 
+    // ボスの描画と極太光線
     if(boss) {
-      ctx.font = '150px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('🤴❤️👸', boss.x, boss.y + 50);
-      ctx.fillStyle = 'yellow';
-      ctx.fillRect(boss.x-100, boss.y-100, (boss.hp/60)*200, 15);
-    }
-
-    couples.forEach(c => {
-      // イチャイチャ光線（太いビビッドピンク）
+      // 王と妃を繋ぐ絶望の光線
       ctx.strokeStyle = '#ff00ff';
-      ctx.lineWidth = 5 + Math.random()*10;
-      ctx.shadowBlur = 15;
+      ctx.lineWidth = 15 + Math.sin(Date.now()/50)*10;
+      ctx.shadowBlur = 30;
       ctx.shadowColor = '#ff00ff';
       ctx.beginPath();
-      ctx.moveTo(c.x - 30, c.y);
-      ctx.lineTo(c.x + 30, c.y + (Math.random()-0.5)*30);
+      ctx.moveTo(boss.x - 70, boss.y);
+      ctx.lineTo(boss.x + 70, boss.y);
       ctx.stroke();
       ctx.shadowBlur = 0;
 
-      ctx.font = '60px Arial';
+      ctx.font = '100px Arial';
       ctx.textAlign = 'center';
-      ctx.save();
-      ctx.translate(c.x-40, c.y); ctx.rotate(c.angle); ctx.fillText(c.m, 0, 0); ctx.restore();
-      ctx.save();
-      ctx.translate(c.x+40, c.y); ctx.rotate(-c.angle); ctx.fillText(c.w, 0, 0); ctx.restore();
-      ctx.fillText('❤️', c.x, c.y - 40);
+      ctx.fillText('🤴', boss.x - 80, boss.y + 40);
+      ctx.fillText('👸', boss.x + 80, boss.y + 40);
+      ctx.fillText('💖', boss.x, boss.y - 20);
+
+      // ボスHP
+      ctx.fillStyle = '#333';
+      ctx.fillRect(boss.x-100, boss.y-80, 200, 10);
+      ctx.fillStyle = '#ff00ff';
+      ctx.fillRect(boss.x-100, boss.y-80, (boss.hp/60)*200, 10);
+    }
+
+    // ザコの描画（ただのイチャつき）
+    couples.forEach(c => {
+      ctx.font = '55px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(c.m, c.x - 35, c.y);
+      ctx.fillText(c.w, c.x + 35, c.y);
+      ctx.font = '30px Arial';
+      ctx.fillText('❤️', c.x, c.y - 35);
     });
 
     particles.forEach(p => {
@@ -183,7 +192,7 @@
 
     texts.forEach(t => {
       ctx.globalAlpha = t.life; ctx.fillStyle = 'yellow';
-      ctx.font = 'bold 30px sans-serif'; ctx.fillText(t.val, t.x, t.y);
+      ctx.font = 'bold 25px sans-serif'; ctx.fillText(t.val, t.x, t.y);
     });
 
     ctx.restore();
@@ -195,21 +204,29 @@
   function tap(ex, ey) {
     if(!running) return;
     let hit = false;
+    
+    // ボス判定
     if(boss) {
-      const dist = Math.sqrt((ex-boss.x)**2 + (ey-boss.y)**2);
-      if(dist < 150) {
+      const d = Math.sqrt((ex-boss.x)**2 + (ey-boss.y)**2);
+      if(d < 150) {
         boss.hp--; createExplosion(ex, ey, false); score += 2000; hit = true;
-        if(boss.hp <= 0) { createExplosion(boss.x, boss.y, true); boss = null; score += 100000; soul = 0; timeLeft += 15; }
+        if(boss.hp <= 0) {
+          createExplosion(boss.x, boss.y, true);
+          boss = null; score += 100000; soul = 0; timeLeft = Math.min(30, timeLeft + 10);
+          alert("【完全勝利】真のリア充王を殲滅した！");
+        }
       }
     }
+
+    // ザコ判定
     for(let i = couples.length - 1; i >= 0; i--) {
       const c = couples[i];
-      if(Math.abs(ex - c.x) < 100 && Math.abs(ey - c.y) < 80) {
+      if(Math.abs(ex - c.x) < 80 && Math.abs(ey - c.y) < 60) {
         createExplosion(c.x, c.y); couples.splice(i, 1);
-        score += 1000; soul = Math.min(100, soul + 15); hit = true;
+        score += 1000; soul = Math.min(100, soul + 20); hit = true;
       }
     }
-    if(!hit) { shake = 5; score = Math.max(0, score - 100); }
+    if(!hit) { score = Math.max(0, score - 50); }
   }
 
   cv.addEventListener('pointerdown', e => { e.preventDefault(); tap(e.clientX, e.clientY); });
