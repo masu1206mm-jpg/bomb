@@ -3,44 +3,68 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
-  <title>カップル爆破ゲーム！真・ラスボス完全降臨版</title>
+  <title>カップル爆破！〜顔文字カオス・アプデ〜</title>
   <style>
-    :root { --main-red: #ff3300; }
-    body { margin: 0; background: #000; color: #fff; font-family: 'Arial Black', sans-serif; overflow: hidden; }
-    canvas { display: block; touch-action: none; }
-    #overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; text-align: center; }
-    .start-btn { padding: 20px 50px; font-size: 24px; background: var(--main-red); color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; box-shadow: 0 0 20px var(--main-red); }
-    #ui { position: absolute; top: 10px; left: 10px; pointer-events: none; font-size: 20px; text-shadow: 2px 2px #000; }
+    :root { --main-red: #ff3300; --soul-orange: #ffaa00; }
+    body { margin: 0; background: #000; color: #fff; font-family: 'Arial Black', sans-serif; overflow: hidden; user-select: none; }
+    #game-ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+    .status-bar { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; font-size: 20px; }
+    #damage-flash { position: fixed; inset: 0; background: rgba(255, 0, 0, 0.4); opacity: 0; pointer-events: none; transition: opacity 0.1s; z-index: 5; }
+    .soul-gauge-container {
+      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+      width: 80%; height: 25px; background: rgba(255,255,255,0.2); border: 2px solid #fff; border-radius: 10px; overflow: hidden;
+    }
+    #soul-inner { width: 0%; height: 100%; background: linear-gradient(90deg, var(--soul-orange), var(--main-red)); transition: width 0.1s; }
+    #boss-alert { position: absolute; top: 30%; width: 100%; text-align: center; font-size: 40px; color: yellow; font-weight: 900; display: none; text-shadow: 5px 5px #ff0000; animation: flash 0.5s infinite; }
+    @keyframes flash { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+    canvas { display: block; touch-action: none; background: #000; }
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; text-align: center; padding: 20px; }
+    .start-btn { margin-top: 30px; padding: 20px 50px; font-size: 24px; background: var(--main-red); color: #fff; border: none; border-radius: 50px; cursor: pointer; box-shadow: 0 0 20px var(--main-red); }
   </style>
 </head>
 <body>
-  <div id="overlay">
-    <h1>💥 カップル爆破ゲーム 💥<br>〜真・ラスボス降臨〜</h1>
+
+  <div id="damage-flash"></div>
+  <div class="overlay" id="overlay">
+    <h1>💥 カップル爆破！顔文字版</h1>
+    <p>イチャついてる奴らは即爆破！<br><span style="color:#ffaa00;">顔文字たちが画面を埋め尽くす前に叩け！</span></p>
     <button class="start-btn" id="startBtn">魂を燃やす（スタート）</button>
   </div>
-  <div id="ui">SCORE: <span id="score">0</span></div>
+
+  <div id="game-ui">
+    <div class="status-bar">
+      <div>SCORE: <span id="score">0</span></div>
+      <div>TIME: <span id="time">30.0</span></div>
+    </div>
+    <div id="boss-alert">真の顔文字王👑降臨！！</div>
+    <div class="soul-gauge-container">
+      <div id="soul-inner"></div>
+    </div>
+  </div>
+
   <canvas id="cv"></canvas>
 
 <script>
 (() => {
   const cv = document.getElementById('cv');
   const ctx = cv.getContext('2d');
+  const scoreEl = document.getElementById('score');
+  const timeEl = document.getElementById('time');
+  const soulInner = document.getElementById('soul-inner');
+  const bossAlert = document.getElementById('boss-alert');
   const startBtn = document.getElementById('startBtn');
   const overlay = document.getElementById('overlay');
-  const scoreEl = document.getElementById('score');
+  const damageFlash = document.getElementById('damage-flash');
 
-  // ★重要：ここにコピーした Data:image/jpeg;base64... の文字列を「" "」の間に貼り付けてください
-  const BOSS_DATA_URL = Data:image/jpeg;base64,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"";
+  const emojis = ['🥸', '🤡', '😡', '💀', '👽', '🤖', '👾', '🤮', '👻', '🎃', '🥶', '🤥'];
+  const burstEmojis = ['💥', '🔥', '✨', '⚡️', '💢'];
 
-  const bossImg = new Image();
-  bossImg.src = BOSS_DATA_URL;
-
-  let running = false, score = 0, boss = null, soul = 0;
-  let couples = [];
+  let width, height, score = 0, timeLeft = 30, running = false;
+  let couples = [], particles = [], shake = 0, soul = 0, boss = null;
 
   function resize() {
-    cv.width = window.innerWidth;
-    cv.height = window.innerHeight;
+    width = cv.width = window.innerWidth;
+    height = cv.height = window.innerHeight;
   }
   window.addEventListener('resize', resize);
   resize();
@@ -48,27 +72,81 @@
   function createCouple() {
     const isLeft = Math.random() > 0.5;
     return {
-      x: isLeft ? -50 : cv.width + 50,
-      y: cv.height * 0.4 + Math.random() * cv.height * 0.4,
-      vx: (isLeft ? 1 : -1) * (2 + Math.random() * 3),
-      color: `hsl(${Math.random()*360}, 70%, 70%)`
+      x: isLeft ? -100 : width + 100,
+      y: height * 0.2 + Math.random() * height * 0.6,
+      vx: (isLeft ? 1 : -1) * (1.5 + Math.random() * 3),
+      e1: emojis[Math.floor(Math.random()*emojis.length)],
+      e2: emojis[Math.floor(Math.random()*emojis.length)],
+      color: `hsl(${Math.random()*360}, 60%, 70%)`
     };
+  }
+
+  function createExplosion(x, y, isBoss = false) {
+    shake = isBoss ? 60 : 20;
+    const count = isBoss ? 50 : 15;
+    for(let i=0; i<count; i++) {
+      particles.push({
+        x, y,
+        vx: (Math.random()-0.5) * (isBoss ? 30 : 15),
+        vy: (Math.random()-0.5) * (isBoss ? 30 : 15),
+        emoji: burstEmojis[Math.floor(Math.random()*burstEmojis.length)],
+        size: Math.random() * 30 + 10,
+        life: 1.0,
+        rotate: Math.random() * Math.PI * 2
+      });
+    }
   }
 
   function update() {
     if(!running) return;
-    
-    // 魂がたまるとボス出現
-    if(soul >= 100 && !boss) {
-      boss = { x: cv.width/2, y: -200, hp: 40, size: 280, targetY: cv.height/3 };
-    }
-    if(boss && boss.y < boss.targetY) boss.y += 4;
+    if(shake > 0) shake *= 0.9;
 
-    // カップルを湧かせる
-    if(Math.random() < 0.05 && couples.length < 6) couples.push(createCouple());
+    // ダメージ判定
+    if(couples.length > 0) {
+      timeLeft -= couples.length * 0.008;
+      damageFlash.style.opacity = Math.min(0.6, couples.length * 0.1);
+    } else {
+      damageFlash.style.opacity = 0;
+    }
+    
+    timeLeft -= 1/60;
+
+    if(timeLeft <= 0) {
+      running = false;
+      alert(`【終焉】 スコア: ${score}\n顔文字たちのイチャつきを阻止しきれなかった…`);
+      location.reload();
+      return;
+    }
+
+    if(soul >= 100 && !boss) {
+      bossAlert.style.display = 'block';
+      setTimeout(() => { bossAlert.style.display = 'none'; }, 2000);
+      boss = { x: width / 2, y: -200, hp: 50, size: 250, state: 'entry' };
+      soul = 99;
+    }
+
+    if(boss) {
+      if(boss.state === 'entry') {
+        boss.y += 4;
+        if(boss.y >= height/3) boss.state = 'fight';
+      } else {
+        boss.x += Math.sin(Date.now()/300) * 6;
+        boss.y += Math.cos(Date.now()/500) * 3;
+      }
+    }
+
+    if(Math.random() < 0.07 && couples.length < 12) {
+      couples.push(createCouple());
+    }
+    
     couples.forEach((c, i) => {
       c.x += c.vx;
-      if(c.x < -100 || c.x > cv.width + 100) couples.splice(i, 1);
+      if(c.x < -200 || c.x > width + 200) couples.splice(i, 1);
+    });
+
+    particles.forEach((p, i) => {
+      p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+      if(p.life <= 0) particles.splice(i, 1);
     });
 
     draw();
@@ -76,71 +154,108 @@
   }
 
   function draw() {
-    ctx.fillStyle = boss ? '#300' : '#1a2a1a';
-    ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.save();
+    ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
+    ctx.fillStyle = boss ? '#300' : '#111';
+    ctx.fillRect(0, 0, width, height);
 
-    // カップル描画
-    couples.forEach(c => {
-      ctx.fillStyle = c.color;
-      ctx.beginPath(); ctx.arc(c.x-20, c.y, 20, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(c.x+20, c.y, 20, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = 'red'; ctx.fillText('❤️', c.x-10, c.y-20);
-    });
+    // 道の演出
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillRect(0, height*0.2, width, height*0.6);
 
     if(boss) {
-      ctx.save();
-      ctx.translate(boss.x, boss.y);
+      ctx.textAlign = 'center';
+      ctx.font = `${boss.size}px Arial`;
+      ctx.fillText('👑🔥', boss.x, boss.y + 80);
       
-      // 円形に写真を切り抜く
-      ctx.beginPath();
-      ctx.arc(0, 0, boss.size/2, 0, Math.PI*2);
-      ctx.clip();
-
-      if(bossImg.complete && bossImg.naturalWidth > 0) {
-        ctx.drawImage(bossImg, -boss.size/2, -boss.size/2, boss.size, boss.size);
-      } else {
-        ctx.fillStyle = 'purple'; ctx.fill();
-      }
-      ctx.restore();
-      
-      // 豪華な金枠
-      ctx.strokeStyle = 'gold';
-      ctx.lineWidth = 10;
-      ctx.beginPath(); ctx.arc(boss.x, boss.y, boss.size/2, 0, Math.PI*2); ctx.stroke();
-      
-      // HPバー
-      ctx.fillStyle = 'red';
-      ctx.fillRect(boss.x - 100, boss.y - boss.size/2 - 30, (boss.hp/40)*200, 15);
+      // BOSS HPバー
+      ctx.fillStyle = '#333';
+      ctx.fillRect(boss.x-100, boss.y-100, 200, 15);
+      ctx.fillStyle = 'yellow';
+      ctx.fillRect(boss.x-100, boss.y-100, (boss.hp/50)*200, 15);
+      ctx.strokeStyle = '#fff';
+      ctx.strokeRect(boss.x-100, boss.y-100, 200, 15);
     }
-    scoreEl.innerText = score;
+
+    couples.forEach(c => {
+      ctx.font = '60px Arial';
+      ctx.textAlign = 'center';
+      // イチャつきペア
+      ctx.fillText(c.e1, c.x - 35, c.y);
+      ctx.fillText(c.e2, c.x + 35, c.y);
+      ctx.font = '30px Arial';
+      ctx.fillText('❤️', c.x, c.y - 40);
+      
+      // 下の足場（オーラ的なもの）
+      ctx.fillStyle = c.color;
+      ctx.globalAlpha = 0.3;
+      ctx.beginPath();
+      ctx.ellipse(c.x, c.y + 20, 50, 15, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+    });
+
+    // 爆発エフェクト（顔文字）
+    particles.forEach(p => {
+      ctx.save();
+      ctx.globalAlpha = p.life;
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rotate);
+      ctx.font = `${p.size}px Arial`;
+      ctx.fillText(p.emoji, 0, 0);
+      ctx.restore();
+    });
+    ctx.restore();
+
+    scoreEl.innerText = Math.floor(score);
+    timeEl.innerText = Math.max(0, timeLeft).toFixed(1);
+    soulInner.style.width = soul + '%';
   }
 
-  cv.addEventListener('pointerdown', (e) => {
+  function tap(ex, ey) {
     if(!running) return;
-    const { clientX: ex, clientY: ey } = e;
+    let hit = false;
 
     if(boss) {
-      const d = Math.sqrt((ex - boss.x)**2 + (ey - boss.y)**2);
-      if(d < boss.size/2) {
+      const dist = Math.sqrt((ex-boss.x)**2 + (ey-boss.y)**2);
+      if(dist < boss.size/1.5) {
         boss.hp--;
+        createExplosion(ex, ey, false);
         score += 1000;
+        hit = true;
         if(boss.hp <= 0) {
-          alert("真の現実を粉砕！完全勝利！！");
-          boss = null; soul = 0; score += 100000;
+          createExplosion(boss.x, boss.y, true);
+          boss = null;
+          score += 50000;
+          soul = 0;
+          timeLeft += 10; // ボス撃破で時間回復
+          alert("真の顔文字王を討伐！世界に静寂が訪れた。");
         }
-        return;
       }
     }
 
-    couples.forEach((c, i) => {
-      if(Math.abs(ex - c.x) < 60 && Math.abs(ey - c.y) < 40) {
+    for(let i = couples.length - 1; i >= 0; i--) {
+      const c = couples[i];
+      if(Math.abs(ex - c.x) < 80 && Math.abs(ey - c.y) < 60) {
+        createExplosion(c.x, c.y);
         couples.splice(i, 1);
         score += 500;
-        soul = Math.min(100, soul + 20); // 5組倒せばボス降臨
+        soul = Math.min(100, soul + 12);
+        hit = true;
       }
-    });
-  });
+    }
+    
+    if(!hit) {
+      shake = 5;
+      score = Math.max(0, score - 100);
+    }
+  }
 
+  cv.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    tap(e.clientX, e.clientY);
+  });
+  
   startBtn.addEventListener('click', () => {
     overlay.style.display = 'none';
     running = true;
