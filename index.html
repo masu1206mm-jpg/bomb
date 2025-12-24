@@ -59,7 +59,7 @@
       <h1>カップル爆破ゲーム！</h1>
       <p>魂を燃やせ！真の王が降臨する🔥</p>
     </div>
-    <button class="start-btn" id="startBtn">ロード中...</button>
+    <button class="start-btn" id="startBtn">魂を燃やす（スタート）</button>
   </div>
 
   <div id="game-ui">
@@ -88,12 +88,10 @@
   const startBtn = document.getElementById('startBtn');
   const overlay = document.getElementById('overlay');
 
-  // ラスボス画像の読み込み
+  // ラスボス画像をデータURL（または直接のURL）で指定
   const bossImg = new Image();
-  bossImg.src = 'https://r.jina.ai/i/2c3479f664a742888998135cc3554877'; // あなたが提示した画像のURL
-  bossImg.onload = () => {
-    startBtn.innerText = "魂を燃やす（スタート）";
-  };
+  // 先ほどアップロードされた画像を適用
+  bossImg.src = 'https://r.jina.ai/i/2c3479f664a742888998135cc3554877'; 
 
   let width, height, score = 0, timeLeft = 30, running = false;
   let couples = [], particles = [], shake = 0, combo = 0, soul = 0;
@@ -112,8 +110,8 @@
       x: isLeft ? -100 : width + 100,
       y: height * 0.4 + Math.random() * height * 0.4,
       vx: (isLeft ? 1 : -1) * (2 + Math.random() * 3),
-      p1: { face: Math.random(), color: `hsl(${Math.random()*360}, 60%, 70%)` },
-      p2: { face: Math.random(), color: `hsl(${Math.random()*360}, 60%, 70%)` }
+      p1: { color: `hsl(${Math.random()*360}, 60%, 70%)` },
+      p2: { color: `hsl(${Math.random()*360}, 60%, 70%)` }
     };
   }
 
@@ -149,62 +147,72 @@
     ctx.save();
     ctx.translate(b.x, b.y);
     
-    // 円形にクリップ（顔を切り抜いた風）
+    // 画像を円形に切り抜き
     ctx.beginPath();
-    ctx.arc(0, 0, b.size/2, 0, Math.PI*2);
+    ctx.arc(0, 0, b.size / 2, 0, Math.PI * 2);
     ctx.clip();
 
-    // 画像描画
-    ctx.drawImage(bossImg, -b.size/2, -b.size/2, b.size, b.size);
-    
-    // クリップ解除のためにrestoreする前に枠線
+    // 画像が読み込まれていれば描画、そうでなければ代わりの図形
+    if (bossImg.complete) {
+      ctx.drawImage(bossImg, -b.size / 2, -b.size / 2, b.size, b.size);
+    } else {
+      ctx.fillStyle = 'purple';
+      ctx.fillRect(-b.size/2, -b.size/2, b.size, b.size);
+    }
+
     ctx.restore();
+    
+    // 枠線
     ctx.strokeStyle = 'gold';
-    ctx.lineWidth = 10;
+    ctx.lineWidth = 8;
     ctx.beginPath();
-    ctx.arc(b.x, b.y, b.size/2, 0, Math.PI*2);
+    ctx.arc(b.x, b.y, b.size / 2, 0, Math.PI * 2);
     ctx.stroke();
 
-    // BOSS HPバー
+    // HPバー
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(b.x - 100, b.y - b.size/2 - 40, 200, 15);
     ctx.fillStyle = 'red';
-    ctx.fillRect(b.x - 100, b.y - b.size/2 - 30, (b.hp/30)*200, 15);
+    ctx.fillRect(b.x - 100, b.y - b.size/2 - 40, (b.hp / 30) * 200, 15);
   }
 
   function update() {
     if(!running) return;
-    if(shake > 0) shake *= 0.9;
+    if(shake > 0) shake *= 0.95;
     timeLeft -= 1/60;
 
     if(timeLeft <= 0) {
       running = false;
-      alert(`魂の爆破結果：${score}点！\n真の爆破王への道は続く...`);
+      alert(`魂の爆破結果：${score}点！`);
       location.reload();
+      return;
     }
 
+    // 魂100%でボス降臨
     if(soul >= 100 && !boss) {
       boss = createBoss();
       soul = 99;
     }
 
-    // ボス更新
+    // ボス動作
     if(boss) {
       if(boss.state === 'entry') {
-        boss.y += 4;
+        boss.y += 5;
         if(boss.y >= boss.targetY) boss.state = 'fight';
       } else {
-        boss.x += Math.sin(Date.now()/400) * 3;
-        boss.y += Math.cos(Date.now()/600) * 2;
+        boss.x += Math.sin(Date.now() / 400) * 4;
+        boss.y += Math.cos(Date.now() / 600) * 3;
       }
     }
 
-    // ★ ラスボスが出ていてもカップルは出し続ける
-    if(Math.random() < 0.04 && couples.length < 6) {
+    // ボス中もカップルは容赦なく湧く
+    if(Math.random() < 0.05 && couples.length < 8) {
       couples.push(createCouple());
     }
     
     couples.forEach((c, i) => {
       c.x += c.vx;
-      if(c.x < -200 || c.x > width + 200) couples.splice(i, 1);
+      if(c.x < -250 || c.x > width + 250) couples.splice(i, 1);
     });
 
     particles.forEach((p, i) => {
@@ -221,14 +229,11 @@
     ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
 
     // 背景
-    const grad = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, width);
-    grad.addColorStop(0, boss ? '#4a0000' : '#1a2a1a');
-    grad.addColorStop(1, '#000');
-    ctx.fillStyle = grad;
+    ctx.fillStyle = boss ? '#300' : '#1a2a1a';
     ctx.fillRect(0, 0, width, height);
     
     // 道
-    ctx.fillStyle = 'rgba(50,50,50,0.5)';
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
     ctx.fillRect(0, height*0.4, width, height*0.5);
 
     if(boss) drawBoss(ctx, boss);
@@ -262,9 +267,10 @@
     if(!running) return;
     let hit = false;
 
-    if(boss && boss.state !== 'dead') {
-      const dist = Math.sqrt((ex-boss.x)**2 + (ey-boss.y)**2);
-      if(dist < boss.size/2) {
+    // ボスへのダメージ
+    if(boss) {
+      const dist = Math.sqrt((ex - boss.x) ** 2 + (ey - boss.y) ** 2);
+      if(dist < boss.size / 2) {
         boss.hp--;
         createExplosion(ex, ey, false);
         score += 1000;
@@ -279,6 +285,7 @@
       }
     }
 
+    // カップルへのダメージ
     couples.forEach((c, i) => {
       if(Math.abs(ex - c.x) < 80 && Math.abs(ey - c.y) < 60) {
         createExplosion(c.x, c.y);
@@ -303,7 +310,9 @@
 
   cv.addEventListener('pointerdown', e => tap(e.clientX, e.clientY));
   startBtn.addEventListener('click', () => { 
-    if(bossImg.complete) { overlay.style.display = 'none'; running = true; update(); }
+    overlay.style.display = 'none'; 
+    running = true; 
+    update(); 
   });
 })();
 </script>
