@@ -59,7 +59,7 @@
       <h1>カップル爆破ゲーム！</h1>
       <p>魂を燃やせ！真の王が降臨する🔥</p>
     </div>
-    <button class="start-btn" id="startBtn">魂を燃やす（スタート）</button>
+    <button class="start-btn" id="startBtn">ロード中...</button>
   </div>
 
   <div id="game-ui">
@@ -88,10 +88,18 @@
   const startBtn = document.getElementById('startBtn');
   const overlay = document.getElementById('overlay');
 
-  // ラスボス画像をデータURL（または直接のURL）で指定
+  // --- ラスボス画像の読み込み ---
   const bossImg = new Image();
-  // 先ほどアップロードされた画像を適用
-  bossImg.src = 'https://r.jina.ai/i/2c3479f664a742888998135cc3554877'; 
+  // 送っていただいた「マスク姿の顔」のURLをセット
+  bossImg.src = 'https://r.jina.ai/i/13677da714314c9c849cc791c140411a'; 
+  
+  bossImg.onload = () => {
+    startBtn.innerText = "魂を燃やす（スタート）";
+  };
+  bossImg.onerror = () => {
+    startBtn.innerText = "画像読込失敗（でもスタート可）";
+    startBtn.style.background = "#555";
+  };
 
   let width, height, score = 0, timeLeft = 30, running = false;
   let couples = [], particles = [], shake = 0, combo = 0, soul = 0;
@@ -121,24 +129,24 @@
     return {
       x: width / 2,
       y: -400,
-      targetY: height / 2 - 150,
-      hp: 30,
-      size: 300,
+      targetY: height / 2 - 100,
+      hp: 35,
+      size: 280,
       state: 'entry'
     };
   }
 
   function createExplosion(x, y, isBoss = false) {
-    shake = isBoss ? 40 : 15;
-    const count = isBoss ? 150 : 40;
+    shake = isBoss ? 50 : 15;
+    const count = isBoss ? 200 : 40;
     for(let i=0; i<count; i++) {
       particles.push({
         x, y,
-        vx: (Math.random()-0.5) * (isBoss ? 50 : 20),
-        vy: (Math.random()-0.5) * (isBoss ? 50 : 20),
-        r: Math.random() * (isBoss ? 40 : 15) + 5,
+        vx: (Math.random()-0.5) * (isBoss ? 60 : 20),
+        vy: (Math.random()-0.5) * (isBoss ? 60 : 20),
+        r: Math.random() * (isBoss ? 30 : 15) + 5,
         life: 1.0,
-        color: isBoss ? '#ffcc00' : (Math.random() > 0.5 ? '#ff4400' : '#ffaa00')
+        color: isBoss ? '#fff' : (Math.random() > 0.5 ? '#ff4400' : '#ffaa00')
       });
     }
   }
@@ -147,72 +155,77 @@
     ctx.save();
     ctx.translate(b.x, b.y);
     
-    // 画像を円形に切り抜き
+    // 円形に顔を切り抜く
     ctx.beginPath();
-    ctx.arc(0, 0, b.size / 2, 0, Math.PI * 2);
+    ctx.arc(0, 0, b.size/2, 0, Math.PI*2);
     ctx.clip();
 
-    // 画像が読み込まれていれば描画、そうでなければ代わりの図形
-    if (bossImg.complete) {
-      ctx.drawImage(bossImg, -b.size / 2, -b.size / 2, b.size, b.size);
+    if (bossImg.complete && bossImg.naturalWidth !== 0) {
+      // 画像の中心付近（顔）を切り抜いて表示するための計算
+      const aspect = bossImg.width / bossImg.height;
+      let drawW = b.size;
+      let drawH = b.size;
+      if (aspect > 1) drawW = b.size * aspect;
+      else drawH = b.size / aspect;
+      
+      ctx.drawImage(bossImg, -drawW/2, -drawH/2, drawW, drawH);
     } else {
-      ctx.fillStyle = 'purple';
+      // 画像がない場合のフォールバック
+      ctx.fillStyle = '#800080';
       ctx.fillRect(-b.size/2, -b.size/2, b.size, b.size);
     }
-
-    ctx.restore();
     
-    // 枠線
+    ctx.restore();
+
+    // 豪華な金枠
     ctx.strokeStyle = 'gold';
     ctx.lineWidth = 8;
     ctx.beginPath();
-    ctx.arc(b.x, b.y, b.size / 2, 0, Math.PI * 2);
+    ctx.arc(b.x, b.y, b.size/2, 0, Math.PI*2);
     ctx.stroke();
 
-    // HPバー
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    // BOSS HPバー
+    ctx.fillStyle = '#333';
     ctx.fillRect(b.x - 100, b.y - b.size/2 - 40, 200, 15);
-    ctx.fillStyle = 'red';
-    ctx.fillRect(b.x - 100, b.y - b.size/2 - 40, (b.hp / 30) * 200, 15);
+    ctx.fillStyle = 'lime';
+    ctx.fillRect(b.x - 100, b.y - b.size/2 - 40, (b.hp/35)*200, 15);
   }
 
   function update() {
     if(!running) return;
-    if(shake > 0) shake *= 0.95;
+    if(shake > 0) shake *= 0.9;
     timeLeft -= 1/60;
 
     if(timeLeft <= 0) {
       running = false;
-      alert(`魂の爆破結果：${score}点！`);
+      alert(`魂の爆破結果：${score}点！\n真の爆破王への道は続く...`);
       location.reload();
-      return;
     }
 
-    // 魂100%でボス降臨
     if(soul >= 100 && !boss) {
       boss = createBoss();
-      soul = 99;
+      soul = 99; 
     }
 
-    // ボス動作
+    // ボス更新
     if(boss) {
       if(boss.state === 'entry') {
-        boss.y += 5;
+        boss.y += 4;
         if(boss.y >= boss.targetY) boss.state = 'fight';
       } else {
-        boss.x += Math.sin(Date.now() / 400) * 4;
-        boss.y += Math.cos(Date.now() / 600) * 3;
+        boss.x += Math.sin(Date.now()/500) * 4;
+        boss.y += Math.cos(Date.now()/700) * 2;
       }
     }
 
-    // ボス中もカップルは容赦なく湧く
-    if(Math.random() < 0.05 && couples.length < 8) {
+    // ★ ラスボスが出ていてもカップルは絶え間なく出現させる
+    if(Math.random() < 0.05 && couples.length < 7) {
       couples.push(createCouple());
     }
     
     couples.forEach((c, i) => {
       c.x += c.vx;
-      if(c.x < -250 || c.x > width + 250) couples.splice(i, 1);
+      if(c.x < -200 || c.x > width + 200) couples.splice(i, 1);
     });
 
     particles.forEach((p, i) => {
@@ -228,12 +241,15 @@
     ctx.save();
     ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
 
-    // 背景
-    ctx.fillStyle = boss ? '#300' : '#1a2a1a';
+    // 背景描画
+    const grad = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, width);
+    grad.addColorStop(0, boss ? '#400040' : '#1a2a1a');
+    grad.addColorStop(1, '#000');
+    ctx.fillStyle = grad;
     ctx.fillRect(0, 0, width, height);
     
     // 道
-    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillStyle = 'rgba(100,100,100,0.3)';
     ctx.fillRect(0, height*0.4, width, height*0.5);
 
     if(boss) drawBoss(ctx, boss);
@@ -250,7 +266,7 @@
     });
     ctx.restore();
 
-    scoreEl.innerText = score;
+    scoreEl.innerText = Math.floor(score);
     timeEl.innerText = timeLeft.toFixed(1);
     soulInner.style.width = soul + '%';
   }
@@ -267,32 +283,32 @@
     if(!running) return;
     let hit = false;
 
-    // ボスへのダメージ
-    if(boss) {
-      const dist = Math.sqrt((ex - boss.x) ** 2 + (ey - boss.y) ** 2);
-      if(dist < boss.size / 2) {
+    // ボス判定
+    if(boss && boss.state !== 'dead') {
+      const dist = Math.sqrt((ex-boss.x)**2 + (ey-boss.y)**2);
+      if(dist < boss.size/2) {
         boss.hp--;
         createExplosion(ex, ey, false);
-        score += 1000;
+        score += 1500;
         hit = true;
         if(boss.hp <= 0) {
           createExplosion(boss.x, boss.y, true);
           boss = null;
-          score += 20000;
+          score += 30000;
           soul = 0;
-          alert("神をも爆破！お前の魂は救われた。");
+          alert("真の現実を爆破した！おめでとう。");
         }
       }
     }
 
-    // カップルへのダメージ
+    // ザコ判定
     couples.forEach((c, i) => {
       if(Math.abs(ex - c.x) < 80 && Math.abs(ey - c.y) < 60) {
         createExplosion(c.x, c.y);
         couples.splice(i, 1);
-        score += 100 + (combo * 30);
+        score += 100 + (combo * 50);
         combo++;
-        soul = Math.min(100, soul + 12);
+        soul = Math.min(100, soul + 15);
         hit = true;
         showCombo();
       }
